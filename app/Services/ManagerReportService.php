@@ -47,7 +47,7 @@ class ManagerReportService
         }
         
         $writer = new Xlsx($spreadsheet);
-        $fileName = 'Непідписані видаткові накладні на ' . date('dmY') . '.xlsx';
+        $fileName = 'unsigned_documents_for_you' . date('dmY') . '.xlsx';
         $filePath = public_path('storage/' . $fileName);
         $writer->save($filePath);
 

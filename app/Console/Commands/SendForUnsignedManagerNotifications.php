@@ -3,8 +3,9 @@
 namespace App\Console\Commands;
 
 use App\Models\Manager;
-
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Mail;
 use App\Services\ManagerReportService;
 use App\Notifications\UnsignedManagerNotification;
 
@@ -26,14 +27,18 @@ class SendForUnsignedManagerNotifications extends Command
 
     public function getUnsignedManagers()
 {
+    //прилетала ошибка с памятью
     ini_set('memory_limit', '556M');
     $reportService = new ManagerReportService();
 
+    //выборка
     $managers = Manager::whereHas('contracts.orders.salesInvoices', function ($query) {
         $query->where('status', '!=', 'customer-signed')
-              ->where('date_sale', '>', '2023-12-31');
+              ->where('date_sale', '>', '2023-12-31')
+              ->limit(1);
     })->get();
 
+    //проход по менеджерам и далее по уровням, все пушим в коллекцию для работы
     foreach ($managers as $manager) {
         $invoices = collect();
 
@@ -57,9 +62,11 @@ class SendForUnsignedManagerNotifications extends Command
         // Отправляем уведомление
         if (!filter_var($manager->email, FILTER_VALIDATE_EMAIL)) {
             $this->error("Invalid email address for manager ID {$manager->id}.");
-            continue; // Пропустить отправку уведомления этому менеджеру
+            continue; 
         }
         $manager->notify(new UnsignedManagerNotification($filePath));
+        // Notification::route('mail', 'gavrilnikitin2020@gmail.com')
+        //     ->notify(new UnsignedManagerNotification($filePath));
     }
   }
 }

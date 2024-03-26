@@ -15,4 +15,5 @@ class Manager extends Model
     {
         return $this->hasMany(Contract::class);
     }
+    
 }

@@ -11,7 +11,7 @@ class UnsignedManagerNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public $filePath;
+    public $filePath; //
     public function __construct($filePath)
     {
         $this->filePath = $filePath;
@@ -25,8 +25,8 @@ class UnsignedManagerNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
             $mailMessage = (new MailMessage)
-            ->from('hello@example.com', 'AL-KO Company')
-            ->cc('Andrej.Kominek@al-ko.ua') // Копия
+            ->from(config('mail.from.address'), 'AL-KO Company')
+            // ->cc('Andrej.Kominek@al-ko.ua') // Копия
             ->subject('Інформування про наявність непідписаних видаткових накладних') // Тема письма
             ->greeting('Доброго дня!') 
             ->line('Інформуємо Вас про наявність непідписаних видаткових накладних з боку партнерів-дилерів, що закріплені за Вами.') // Основной текст

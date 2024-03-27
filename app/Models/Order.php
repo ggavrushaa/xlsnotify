@@ -9,7 +9,7 @@ class Order extends Model
 {
     use HasFactory;
 
-    public function contracts()
+    public function contract()
     {
         return $this->belongsTo(Contract::class, 'contract_id');
     }

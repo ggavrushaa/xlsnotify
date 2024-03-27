@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Manager;
+use App\Models\OrderSalesInvoice;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
@@ -31,42 +32,43 @@ class SendForUnsignedManagerNotifications extends Command
     ini_set('memory_limit', '556M');
     $reportService = new ManagerReportService();
 
-    //выборка
-    $managers = Manager::whereHas('contracts.orders.salesInvoices', function ($query) {
-        $query->where('status', '!=', 'customer-signed')
-              ->where('date_sale', '>', '2023-12-31')
-              ->limit(1);
-    })->get();
+    $salesInvoices = OrderSalesInvoice::with('order.contract.manager')
+    ->where('status', '!=', 'customer-signed')
+    ->where('date_sale', '>', '2023-12-31')
+    ->get();
 
-    //проход по менеджерам и далее по уровням, все пушим в коллекцию для работы
-    foreach ($managers as $manager) {
-        $invoices = collect();
-
-        foreach ($manager->contracts as $contract) {
-            foreach ($contract->orders as $order) {
-                foreach ($order->salesInvoices as $invoice) {
-                    if ($invoice->status != 'customer-signed' && $invoice->date_sale > '2023-12-31') {
-                        $invoices->push($invoice);
-                    }
-                }
-            }
+    $managerInvoices = $salesInvoices->groupBy(function ($invoice) {
+        if ($invoice->order && $invoice->order->contract) {
+            return $invoice->order->contract->manager_id;
         }
+    
+        return null;
+    });
 
+    foreach ($managerInvoices as $managerId => $invoices) {
+        $manager = Manager::find($managerId);
+        
+        if (!$manager) {
+            $this->error("Manager with ID {$managerId} not found.");
+            continue;
+        }
+        
         if ($invoices->isEmpty()) {
-            $this->info("No unsigned invoices for manager ID {$manager->id}.");
-            continue; 
+            $this->info("No unsigned invoices for manager ID {$managerId}.");
+            continue;
         }
+    
         // Генерируем XLS файл для неподписанных накладных
         $filePath = $reportService->generateXlsForManager($invoices);
         
         // Отправляем уведомление
         if (!filter_var($manager->email, FILTER_VALIDATE_EMAIL)) {
-            $this->error("Invalid email address for manager ID {$manager->id}.");
+            $this->error("Invalid email address for manager ID {$managerId}.");
             continue; 
         }
+        
+        // Используем Eloquent модель для отправки уведомления
         $manager->notify(new UnsignedManagerNotification($filePath));
-        // Notification::route('mail', 'gavrilnikitin2020@gmail.com')
-        //     ->notify(new UnsignedManagerNotification($filePath));
     }
   }
 }

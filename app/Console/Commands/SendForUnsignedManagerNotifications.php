@@ -3,11 +3,12 @@
 namespace App\Console\Commands;
 
 use App\Models\Manager;
-use App\Models\OrderSalesInvoice;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Console\Command;
+use App\Models\OrderSalesInvoice;
 use Illuminate\Support\Facades\Mail;
+use App\Notifications\LogNotification;
 use App\Services\ManagerReportService;
+use Illuminate\Support\Facades\Notification;
 use App\Notifications\UnsignedManagerNotification;
 
 class SendForUnsignedManagerNotifications extends Command
@@ -17,11 +18,20 @@ class SendForUnsignedManagerNotifications extends Command
 
     protected $description = 'Command for sending notifications for unsigned managers';
 
+    protected $logMessages = [];
+
     public function handle()
     {
        $this->warn('In proccess');
         
         $this->getUnsignedManagers();
+
+          // Проверяем
+          if (!empty($this->logMessages)) {
+            $logMessage = implode("\n", $this->logMessages); // Преобразуем массив в одну строку
+            // Отправляем 
+            Notification::route('mail', env('RESPONSIBLE_EMAIL', 'gavrilnikitin2020@gmail.com'))->notify(new LogNotification($logMessage));
+        }
 
         $this->info('Finished');
     }
@@ -41,7 +51,6 @@ class SendForUnsignedManagerNotifications extends Command
         if ($invoice->order && $invoice->order->contract) {
             return $invoice->order->contract->manager_id;
         }
-    
         return null;
     });
 
@@ -49,25 +58,27 @@ class SendForUnsignedManagerNotifications extends Command
         $manager = Manager::find($managerId);
         
         if (!$manager) {
-            $this->error("Manager with ID {$managerId} not found.");
+            $errorMessage = "Не найден менеджер с ID {$managerId}";
+            $this->error($errorMessage);
+            $this->logMessages[] = $errorMessage; // Добавляем сообщение в лог
             continue;
         }
         
         if ($invoices->isEmpty()) {
-            $this->info("No unsigned invoices for manager ID {$managerId}.");
+            $infoMessage = "Все накладные подписаны у менеджера с ID {$managerId}.";
+            $this->info($infoMessage);
             continue;
         }
     
-        // Генерируем XLS файл для неподписанных накладных
+        //  XLS файл для неподписанных
         $filePath = $reportService->generateXlsForManager($invoices);
-        
-        // Отправляем уведомление
+
         if (!filter_var($manager->email, FILTER_VALIDATE_EMAIL)) {
-            $this->error("Invalid email address for manager ID {$managerId}.");
+            $errorMessage = "Некорректный email адрес для менеджера с ID {$managerId}.";
+            $this->error($errorMessage);
+            $this->logMessages[] = $errorMessage; // Добавляем сообщение в лог
             continue; 
         }
-        
-        // Используем Eloquent модель для отправки уведомления
         $manager->notify(new UnsignedManagerNotification($filePath));
     }
   }

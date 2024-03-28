@@ -33,7 +33,7 @@ class ManagerReportService
         foreach ($invoices as $invoice) {
             $sheet->setCellValue('A' . $rowNumber, $invoice->date_sale);
             $sheet->setCellValue('B' . $rowNumber, $invoice->sale_number);
-            $sheet->setCellValue('C' . $rowNumber, $invoice->number );
+            $sheet->setCellValue('C' . $rowNumber, $invoice->order->contract->number );
             $sheet->setCellValue('D' . $rowNumber, $invoice->order->contract->userPartner->full_name_ru );
             $sheet->setCellValue('E' . $rowNumber, $invoice->order->contract->userPartner->mainPartner->full_name_ru ); 
             $sheet->setCellValue('F' . $rowNumber, $invoice->order->amount_without_vat);
